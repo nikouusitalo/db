@@ -1,0 +1,46 @@
+
+services:
+  mariadb:
+    image: mariadb:11.8-noble
+    container_name: mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: testuser
+      MYSQL_PASSWORD: testpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin:5.2.2-apache
+    container_name: phpmyadmin
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mariadb
+      PMA_PORT: 3306
+    depends_on:
+      - mariadb
+
+  mariadb-backup:
+    image: alpine
+    container_name: mariadb-backup
+    depends_on:
+      - mariadb
+    volumes:
+      - ./db_backups:/backups
+    entrypoint: >
+      /bin/sh -c "
+      apk add --no-cache mysql-client;
+      echo '0 3 * * 1 mysqldump -h mariadb -u root -prootpassword --all-databases > /backups/db_backup_$(date +\\%Y\\%m\\%d_\\%H\\%M\\%S).sql' > /etc/crontabs/root;
+      crond -f -l 8
+      "
+    restart: always
+
+volumes:
+  mariadb_data:
+
